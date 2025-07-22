@@ -1,5 +1,5 @@
 import { ApiError } from "../utils/ApiError.js"
-import { User } from "../models/User.model.js"
+import { User } from "../models/User.models.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken"
 
@@ -145,7 +145,7 @@ const logoutUser = async (req, res) => {
 }
 
 
-const refreshAccessToken = asyncHandler(async (req, res) => {
+const refreshAccessToken = async (req, res) => {
 
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
@@ -193,11 +193,19 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
     } catch (error) {
         throw new ApiError(500, error?.message || "Invalid refresh token")
     }
+}
+
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+    return res
+        .status(200)
+        .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
 })
 
 export {
     loginUser,
     logoutUser,
     refreshAccessToken,
-    registerUser
+    registerUser,
+    getCurrentUser
 }

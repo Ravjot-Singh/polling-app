@@ -121,9 +121,43 @@ const getActivePolls = async (req, res) => {
 }
 
 
+const getYourPolls = async (req, res) => {
+
+    try {
+
+        const userId = req.user._id;
+
+        const userPolls = await Poll.find({ createdBy: userId })
+            .populate('options')
+            .populate('createdBy', 'userName')
+            .sort({ createdAt: -1 });
+
+        if (userPolls.length === 0) {
+            throw new ApiError(404, "No polls created yet");
+        }
+
+        return res
+            .status(200)
+            .json(
+                new ApiResponse(200, userPolls, "Your polls fetched successfully")
+            )
+
+
+
+
+    } catch (error) {
+        throw new ApiError(500, error?.message || "Error while fetching your polls");
+    }
+
+}
+
+
+
+
 
 export {
     createPoll,
     getActivePolls,
-    getAllPolls
+    getAllPolls,
+    getYourPolls
 }
