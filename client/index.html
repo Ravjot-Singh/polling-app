@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Poll System Tester</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7fa;
+            margin: 0;
+            padding: 40px 20px;
+            color: #333;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: #2c3e50;
+        }
+
+        .section {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.07);
+            padding: 20px 25px;
+            max-width: 600px;
+            margin: 20px auto;
+            transition: box-shadow 0.3s;
+        }
+
+        .section:hover {
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 6px;
+            margin-bottom: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: #f9f9f9;
+            transition: border 0.3s;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            border-color: #3498db;
+            outline: none;
+        }
+
+        button {
+            width: 100%;
+            background-color: #3498db;
+            color: white;
+            padding: 10px;
+            margin-top: 6px;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        #polls-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        #polls-list div {
+            background-color: #f0f4f8;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        hr {
+            border: 0;
+            border-top: 1px solid #dcdcdc;
+            margin: 10px 0;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="section">
+        <h2>Register</h2>
+        <input id="reg-username" placeholder="Username" />
+        <input id="reg-password" placeholder="Password" type="password" />
+        <button onclick="register()">Register</button>
+    </div>
+
+    <div class="section">
+        <h2>Login</h2>
+        <input id="login-username" placeholder="Username" />
+        <input id="login-password" placeholder="Password" type="password" />
+        <button onclick="login()">Login</button>
+    </div>
+
+    <div class="section">
+        <h2>Create Poll</h2>
+        <input id="poll-title" placeholder="Poll Title" />
+        <textarea id="poll-options" placeholder="Enter options, one per line"></textarea>
+        <button onclick="createPoll()">Create Poll</button>
+    </div>
+
+    <div class="section">
+        <h2>All Polls</h2>
+        <button onclick="fetchPolls()">Fetch All Polls</button>
+        <div id="polls-list"></div>
+    </div>
+
+    <div class="section">
+        <h2>Socket Actions</h2>
+        <input id="vote-option-id" placeholder="Option ID to Vote" />
+        <button onclick="vote()">Vote via Socket</button>
+        <br><br>
+        <input id="toggle-poll-id" placeholder="Poll ID" />
+        <select id="poll-status">
+            <option value="true">Activate</option>
+            <option value="false">Deactivate</option>
+        </select>
+        <button onclick="togglePoll()">Toggle Poll Status</button>
+    </div>
+
+    <div class="section">
+        <h2>Logout</h2>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <script>
+        const BASE_URL = "http://localhost:5000";
+        let accessToken = null;
+        let socket = null;
+
+        const headers = {
+            "Content-Type": "application/json",
+        };
+
+        function register() {
+            fetch(`${BASE_URL}/api/users/register`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    userName: document.getElementById("reg-username").value,
+                    password: document.getElementById("reg-password").value,
+                }),
+                credentials: "include"
+            })
+                .then(res => res.json())
+                .then(data => alert(data.message));
+        }
+
+        function login() {
+            fetch(`${BASE_URL}/api/users/login`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({
+                    userName: document.getElementById("login-username").value,
+                    password: document.getElementById("login-password").value,
+                }),
+                credentials: "include"
+            })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    accessToken = data.data.accessToken;
+                    connectSocket();
+                });
+        }
+
+        function connectSocket() {
+            socket = io(BASE_URL, {
+                auth: {
+                    token: accessToken
+                },
+                withCredentials: true
+            });
+
+            socket.on("connect", () => {
+                console.log("Connected:", socket.id);
+            });
+
+            socket.on("voteUpdate", data => {
+                console.log("Vote Update:", data);
+                alert(`Vote count updated: ${JSON.stringify(data)}`);
+            });
+
+            socket.on("pollStatusChanged", data => {
+                console.log("Poll status updated:", data);
+                alert(`Poll status changed: ${JSON.stringify(data)}`);
+            });
+
+            socket.on("error", err => {
+                console.error("Socket Error:", err.message);
+                alert("Socket Error: " + err.message);
+            });
+        }
+
+        function createPoll() {
+            const title = document.getElementById("poll-title").value;
+            const options = document.getElementById("poll-options").value
+                .split("\n")
+                .map(opt => opt.trim())
+                .filter(Boolean);
+
+            fetch(`${BASE_URL}/api/users/create-new-poll`, {
+                method: "POST",
+                headers,
+                body: JSON.stringify({ title, options }),
+                credentials: "include"
+            })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    console.log("Created Poll:", data);
+                });
+        }
+
+        function fetchPolls() {
+            fetch(`${BASE_URL}/api/users/get-all-polls`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById("polls-list");
+                    container.innerHTML = "";
+                    data.data.forEach(poll => {
+                        const div = document.createElement("div");
+                        div.innerHTML = `
+              <strong>${poll.title}</strong> by ${poll.createdBy.userName}<br/>
+              ${poll.options.map(opt => `${opt.optionValue} (ID: ${opt._id})`).join("<br/>")}
+              <hr/>
+            `;
+                        container.appendChild(div);
+                    });
+                });
+        }
+
+        function vote() {
+            const optionId = document.getElementById("vote-option-id").value;
+            socket.emit("vote", { optionId });
+        }
+
+        function togglePoll() {
+            const pollId = document.getElementById("toggle-poll-id").value;
+            const isActive = document.getElementById("poll-status").value === "true";
+            socket.emit("togglePoll", { pollId, isActive });
+        }
+
+        function logout() {
+            fetch(`${BASE_URL}/api/users/logout`, {
+                method: "POST",
+                credentials: "include"
+            })
+                .then(res => res.json())
+                .then(data => {
+                    alert(data.message);
+                    console.log("Logged out:", data);
+                    if (socket) {
+                        socket.disconnect();
+                        console.log("Socket disconnected.");
+                    }
+                });
+        }
+
+
+    </script>
+</body>
+
+</html>
