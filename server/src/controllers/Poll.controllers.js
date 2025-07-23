@@ -2,7 +2,7 @@ import { Poll } from "../models/Poll.models.js";
 import { Option } from '../models/Option.models.js';
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from '../utils/ApiResponse.js';
-import mongoose from "mongoose";
+
 
 
 const createPoll = async (req, res) => {
@@ -25,7 +25,8 @@ const createPoll = async (req, res) => {
             cleanedOptions.map(value => ({
                 optionValue: value,
                 poll: null,
-            }))
+            })),
+        
         );
 
         const newPoll = await Poll.create({
@@ -50,7 +51,7 @@ const createPoll = async (req, res) => {
 
         const populatedPoll = await Poll
             .findById(newPoll._id)
-            .populate('options')                   // replacng the ids with the actual documents
+            .populate('options')                   // replacng the ids with the actual documents while sending to frontend
             .populate('createdBy', 'userName');
 
 

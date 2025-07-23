@@ -63,9 +63,6 @@ const togglePollStatus = async (pollId, userId, isActive) => {
         throw new Error(error.message || "Something went wrong");
 
     }
-
-
-
 }
 
 

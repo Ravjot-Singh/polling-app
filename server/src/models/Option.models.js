@@ -20,7 +20,7 @@ const optionSchema = new mongoose.Schema(
     poll: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Poll',
-      required: true,
+      
     },
   },
   { timestamps: true }
